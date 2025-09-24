@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sosmed Store</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{background:linear-gradient(135deg,#4facfe,#00f2fe);min-height:100vh;padding:20px;}
+header{display:flex;justify-content:space-between;align-items:center;
+       background:rgba(255,255,255,0.2);backdrop-filter:blur(6px);
+       padding:15px 20px;border-radius:15px;margin-bottom:20px;color:white;}
+.logo{font-weight:bold;font-size:20px;cursor:pointer;}
+.menu-toggle{cursor:pointer;width:30px;height:22px;display:flex;flex-direction:column;
+             justify-content:space-between;}
+.menu-toggle span{height:4px;background:white;border-radius:3px;}
+.nav-menu{position:absolute;top:65px;right:20px;background:white;color:#333;
+          border-radius:12px;box-shadow:0 5px 20px rgba(0,0,0,0.3);display:none;min-width:180px;}
+.nav-menu a{display:block;padding:10px 15px;text-decoration:none;color:#333;}
+.nav-menu a:hover{background:#f0f0f0;}
+.container{max-width:650px;margin:0 auto;background:white;padding:20px;border-radius:20px;
+           box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+h2{text-align:center;margin-bottom:20px;color:#333;}
+label{display:block;margin-top:15px;margin-bottom:5px;color:#333;}
+input,select,button{width:100%;padding:12px;border:1px solid #ccc;border-radius:12px;margin-bottom:10px;}
+button{background:#4facfe;color:white;font-weight:bold;border:none;cursor:pointer;}
+button:hover{background:#00c3fe;}
+.method-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.method-card{background:#f8f8f8;border-radius:15px;padding:10px;text-align:center;cursor:pointer;transition:0.3s;}
+.method-card:hover{background:#e0f7fa;}
+.selected{border:2px solid #4facfe;}
+#limitMsg{color:red;font-weight:bold;margin-bottom:10px;}
+#priceInfo{margin-bottom:10px;color:#333;font-weight:bold;}
+.admin-panel{display:none;margin-top:40px;background:#fff3cd;padding:20px;border-radius:20px;}
+.code-item{padding:6px 0;border-bottom:1px solid #ccc;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" id="logo">Sosmed Market</div>
+  <div class="menu-toggle" id="menuToggle">
+    <span></span><span></span><span></span>
+  </div>
+  <div class="nav-menu" id="navMenu">
+    <a href="#" onclick="scrollToForm()">Beranda</a>
+    <a href="https://wa.me/6285703943720" target="_blank">Bantuan</a>
+  </div>
+</header>
+
+<div class="container" id="orderForm">
+  <h2>Sosmed Market</h2>
+
+  <label>ID PESANAN</label>
+  <input type="text" id="idpesanan" readonly>
+
+  <label>Tanggal Pemesanan</label>
+  <input type="text" id="tanggal" readonly>
+
+  <label>Masukan Link Target</label>
+  <input type="text" id="link" placeholder="https://contoh.com">
+
+  <label>Pilih Sosmed</label>
+  <select id="gameSelect"><option value="">-- Pilih --</option></select>
+
+  <label id="jumlahLabel">Masukkan jumlah</label>
+  <input type="number" id="jumlah" placeholder="Masukkan jumlah" min="1">
+
+  <label>Metode Pembayaran</label>
+  <div class="method-list" id="methodList"></div>
+
+  <label>Kode Promo</label>
+  <input type="text" id="promo" placeholder="Masukkan kode promo (jika ada)">
+  <div id="promoMsg" style="color:green;font-weight:bold"></div>
+
+  <div id="limitMsg"></div>
+  <div id="priceInfo"></div>
+
+  <label>Total Harga</label>
+  <input type="text" id="totalHarga" readonly>
+
+  <button onclick="kirimWA()">Pesan Sekarang</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="container admin-panel" id="adminPanel">
+  <h2>Admin Panel</h2>
+  <label>Kode Promo Baru</label>
+  <input type="text" id="newCode" placeholder="Masukkan kode">
+  <label>Potongan (%)</label>
+  <input type="number" id="newDiscount" placeholder="Misal 20">
+  <label>Batas Waktu</label>
+  <input type="datetime-local" id="newExpiry">
+  <button onclick="buatKode()">Simpan Kode</button>
+  <h3>Daftar Kode Promo</h3>
+  <div id="codeList"></div>
+</div>
+
+<script>
+/*================= DATA =================*/
+const games = [
+ "Instagram","TikTok","YouTube","Facebook","Twitter/X"
+];
+const hargaPerGame = {
+ "Instagram": 50,"TikTok":50,"YouTube":60,"Facebook":50,"Twitter/X":60
+};
+// Placeholder khusus sesuai platform
+const placeholderMap = {
+ "Instagram": "Masukkan jumlah Followers",
+ "TikTok": "Masukkan jumlah Followers",
+ "YouTube": "Masukkan jumlah Subscribe",
+ "Facebook": "Masukkan jumlah Followers",
+ "Twitter/X": "Masukkan jumlah Followers"
+};
+const metode = ["Dana","Gopay"];
+const MIN_VAL = 50;
+const MAX_VAL = 50000000;
+
+/*================= RENDER =================*/
+const gameSelect=document.getElementById('gameSelect');
+games.forEach(g=>{
+  let opt=document.createElement('option');
+  opt.value=g; opt.textContent=g;
+  gameSelect.appendChild(opt);
+});
+const methodList=document.getElementById('methodList');
+metode.forEach(m=>{
+  const d=document.createElement('div');
+  d.className='method-card';d.textContent=m;
+  d.onclick=()=>pilihMethod(m,d);
+  methodList.appendChild(d);
+});
+
+/*================= VARIABEL =================*/
+let selectedGame=null,selectedMethod=null,promoActive=null;
+
+/*================= FUNCTION =================*/
+function pilihMethod(m,el){
+  selectedMethod=m;
+  document.querySelectorAll('.method-card').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  updateHarga();
+}
+
+document.getElementById('jumlah').addEventListener('input',updateHarga);
+gameSelect.addEventListener('change',()=>{
+  selectedGame = gameSelect.value;
+  // ubah placeholder sesuai pilihan
+  const ph = placeholderMap[selectedGame] || "Masukkan jumlah";
+  document.getElementById('jumlah').placeholder = ph;
+  document.getElementById('jumlahLabel').textContent = ph;
+  updateHarga();
+});
+document.getElementById('promo').addEventListener('input',cekPromo);
+
+function updateHarga(){
+  const jumlah = parseInt(document.getElementById('jumlah').value) || 0;
+  const hargaUnit = hargaPerGame[selectedGame] || 0;
+  let total = jumlah * hargaUnit;
+  const limitMsg = document.getElementById('limitMsg');
+  const priceInfo = document.getElementById('priceInfo');
+  priceInfo.textContent = "";
+
+  if(jumlah && jumlah < MIN_VAL){
+    limitMsg.textContent = "⚠️ Minimal 50";
+    document.getElementById('totalHarga').value = "";
+    return;
+  }else if(jumlah > MAX_VAL){
+    limitMsg.textContent = "⚠️ Maximal 50.000.000";
+    document.getElementById('totalHarga').value = "";
+    return;
+  }else{
+    limitMsg.textContent = "";
+  }
+
+  if(promoActive){
+    const hargaAsli = total;
+    total = Math.round(total*(100-promoActive.discount)/100);
+    priceInfo.innerHTML =
+      `Harga Asli: Rp ${hargaAsli.toLocaleString()}<br>`+
+      `Diskon: ${promoActive.discount}%<br>`+
+      `Harga Setelah Diskon: Rp ${total.toLocaleString()}`;
+  }
+
+  document.getElementById('totalHarga').value = jumlah>0?`Rp ${total.toLocaleString()}`:"";
+}
+
+function cekPromo(){
+  const code = document.getElementById('promo').value.trim();
+  const promos = JSON.parse(localStorage.getItem('promoList')||"[]");
+  const now = Date.now();
+  promoActive = null;
+  for(let p of promos){
+    if(p.code===code && now < p.expiry){
+      promoActive = p; break;
+    }
+  }
+  document.getElementById('promoMsg').textContent =
+    promoActive ? `Diskon ${promoActive.discount}% diterapkan` : "";
+  updateHarga();
+}
+
+function kirimWA(){
+  const link=document.getElementById('link').value.trim();
+  const jumlah = parseInt(document.getElementById('jumlah').value);
+  const total = document.getElementById('totalHarga').value;
+  if(!link.startsWith("https://")){ alert("Masukkan link yang valid (harus https://)"); return; }
+  if(!selectedGame||!selectedMethod||!jumlah){ alert("Lengkapi semua pilihan!"); return; }
+  if(jumlah<MIN_VAL || jumlah>MAX_VAL){ alert("Jumlah tidak sesuai batas!"); return; }
+  if(!total){ alert("Total harga tidak valid!"); return; }
+  const id = document.getElementById('idpesanan').value;
+  const tanggal = document.getElementById('tanggal').value;
+  const pesan = `Halo Admin, saya ingin pesan:\n`+
+    `ID Pesanan: ${id}\nTanggal: ${tanggal}\nPlatform: ${selectedGame}\nJumlah: ${jumlah}\n`+
+    `Metode: ${selectedMethod}\nLink Target: ${link}\nTotal: ${total}`;
+  const url = "https://wa.me/6285703943720?text="+encodeURIComponent(pesan);
+  window.open(url,'_blank');
+}
+
+function generateID(){
+  const n=new Date();
+  return `LUM-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}-${Math.random().toString(36).substring(2,7).toUpperCase()}`;
+}
+function today(){
+  const n=new Date();
+  return `${String(n.getDate()).padStart(2,'0')}/${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()}`;
+}
+document.getElementById('idpesanan').value = generateID();
+document.getElementById('tanggal').value = today();
+
+/*================= ADMIN =================*/
+let logoClicks=0;
+document.getElementById('logo').addEventListener('click',()=>{
+  logoClicks++;
+  if(logoClicks>=5){
+    const pass=prompt("Masukkan Password Admin:");
+    if(pass==="231995"){
+      document.getElementById('adminPanel').style.display='block';
+      loadCodes();
+    }else{ alert("Password salah!"); }
+    logoClicks=0;
+  }
+});
+
+function loadCodes(){
+  const list = JSON.parse(localStorage.getItem('promoList')||"[]");
+  const div = document.getElementById('codeList');
+  div.innerHTML="";
+  list.forEach(c=>{
+    const exp=new Date(c.expiry).toLocaleString();
+    const d=document.createElement('div');
+    d.className='code-item';
+    d.textContent=`${c.code} - ${c.discount}% - Exp: ${exp}`;
+    div.appendChild(d);
+  });
+}
+
+function buatKode(){
+  const code = document.getElementById('newCode').value.trim();
+  const discount = parseInt(document.getElementById('newDiscount').value);
+  const expiry = new Date(document.getElementById('newExpiry').value).getTime();
+  if(!code||!discount||!expiry){alert("Lengkapi semua field!");return;}
+  let list = JSON.parse(localStorage.getItem('promoList')||"[]");
+  list.push({code,discount,expiry});
+  localStorage.setItem('promoList',JSON.stringify(list));
+  loadCodes();
+  alert("Kode promo disimpan!");
+}
+
+/*================= MENU GARIS 3 =================*/
+const menuToggle=document.getElementById('menuToggle');
+const navMenu=document.getElementById('navMenu');
+menuToggle.addEventListener('click',()=>{ 
+  navMenu.style.display = navMenu.style.display==='block'?'none':'block';
+});
+function scrollToForm(){document.getElementById('orderForm').scrollIntoView({behavior:'smooth'});}
+</script>
+</body>
+</html>
